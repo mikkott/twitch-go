@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -110,10 +112,44 @@ func (c *Config) initConfig() {
 	c.Username = strings.ToLower(os.Getenv("TWITCH_USERNAME"))
 	c.ClientID = os.Getenv("TWITCH_CLIENT_ID")
 	c.ClientSecret = os.Getenv("TWITCH_SECRET")
-	c.Token = os.Getenv("TWITCH_TOKEN")
 	c.Capabilities = strings.Split(os.Getenv("TWITCH_CAPABILITIES"), ",")
 	c.CapReq = capReq(c.Capabilities)
 	c.Channels = strings.Split(os.Getenv("TWITCH_CHANNELS"), ",")
+	c.Token = os.Getenv("TWITCH_TOKEN")
+
+}
+
+type Message struct {
+	Channel   string
+	Message   string
+	Command   string
+	Nick      string
+	Timestamp int
+}
+
+func parseMsg(msg string) *Message {
+	re, _ := regexp.Compile(`(?P<Prefix1>;tmi-sent-ts=)(?P<Timestamp>[0-9]+).*(?P<Prefix>\:.*\!.*\@)(?P<Nick>.*)(?P<Server>.tmi.twitch.tv )(?P<Command>.*)(?P<Extra> #)(?P<Channel>[a-z09]+)`)
+
+	if !re.MatchString(msg) {
+		return nil
+	}
+
+	matches := re.FindStringSubmatch(msg)
+
+	nickIndex := re.SubexpIndex("Nick")
+	timestampIndex := re.SubexpIndex("Timestamp")
+
+	commandIndex := re.SubexpIndex("Command")
+	channelIndex := re.SubexpIndex("Channel")
+
+	var message Message
+	message.Nick = matches[nickIndex]
+	message.Command = matches[commandIndex]
+	message.Channel = matches[channelIndex]
+	message.Timestamp, _ = strconv.Atoi(matches[timestampIndex])
+
+	return &message
+
 }
 
 func main() {
@@ -122,6 +158,7 @@ func main() {
 	c.initConfig()
 	origin := "https://www.twitch.tv"
 	url := c.ServerAddr
+
 	fmt.Println(origin, url)
 	ws, err := websocket.Dial(url, "", origin)
 
@@ -129,6 +166,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	fmt.Println(c)
 	auth(ws, c)
 	join(ws, c.Channels)
 
@@ -139,6 +177,12 @@ func main() {
 
 		if err != nil {
 			log.Fatal(err)
+		}
+
+		message := parseMsg(msg)
+
+		if message != nil {
+			fmt.Println(message)
 		}
 
 		if c.Debug {
