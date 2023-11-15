@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -9,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/net/websocket"
 )
 
@@ -152,7 +155,34 @@ func parseMsg(msg string) *Message {
 
 }
 
-func main() {
+type MongoDBConfig struct {
+	Hostname string
+	Username string
+	Password string
+	URI      string
+}
+
+func (m *MongoDBConfig) init() {
+	m.URI = os.Getenv("MONGO_URI")
+}
+
+func mongoDBtest(m MongoDBConfig) {
+	uri := m.URI
+	if uri == "" {
+		log.Fatal("Mongo URI not available.")
+	}
+	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(uri))
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err := client.Disconnect(context.TODO()); err != nil {
+			panic(err)
+		}
+	}()
+}
+
+func run() {
 	var c Config
 
 	c.initConfig()
@@ -191,4 +221,11 @@ func main() {
 
 		time.Sleep(time.Millisecond * 10)
 	}
+}
+
+func main() {
+	var mongoConf MongoDBConfig
+	mongoConf.init()
+	mongoDBtest(mongoConf)
+	run()
 }
