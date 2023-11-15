@@ -23,4 +23,5 @@ TWITCH_SECRET=<from dev console>
 TWITCH_TOKEN=<from twitch-cli>
 TWITCH_CAPABILITIES=twitch.tv/membership,twitch.tv/tags,twitch.tv/commands
 TWITCH_CHANNELS=<whatever channels separated by comma>
+MONGO_URI=mongodb://127.0.0.1:27017/?directConnection=true
 ```
